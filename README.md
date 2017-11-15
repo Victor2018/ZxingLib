@@ -17,23 +17,6 @@ dependencies {
         compile 'com.github.Victor2018:ZxingLib:v1.0'
 }
 
-- Step 3.init in your Application
-
- @Override
-    public void onCreate() {
-        super.onCreate();
-        //初始化
-        VolleyRequest.buildRequestQueue(this);
-    }
-
-- Step 4.extends BasePresenterImpl<T> impl your presenterImpl
-
-@HttpParms(method = Request.Method.GET,url = "http://www.weather.com.cn/data/sk/101280601.html",responseCls = Weather.class)
-@Override
-public void sendRequest(T parm) {
-	HttpInject.inject(this);
-	super.sendRequest(parm);
-}
 
 # 关注开发者：
 - 邮箱： victor423099@gmail.com
