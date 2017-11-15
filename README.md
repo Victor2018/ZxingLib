@@ -1,0 +1,2 @@
+# ZxingLib
+ZxingLib
