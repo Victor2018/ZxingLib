@@ -29,4 +29,5 @@ dependencies {
     testCompile 'junit:junit:4.12'
 
     compile project(':library')
+    compile 'com.github.Victor2018:PermissionHelper:v1.0'
 }
