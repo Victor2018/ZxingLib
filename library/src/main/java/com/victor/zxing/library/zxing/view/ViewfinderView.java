@@ -70,12 +70,12 @@ public final class ViewfinderView extends View {
         RECT_OFFSET_X = typedArray.getInt(R.styleable.qr_ViewfinderView_qr_offsetX, 0);
         RECT_OFFSET_Y = typedArray.getInt(R.styleable.qr_ViewfinderView_qr_offsetY, 0);
 
-        if (TextUtils.isEmpty(hint)) {
-            hint = "将二维码/条形码置于框内即自动扫描";
-        }
-        if (TextUtils.isEmpty(errorHint)) {
-            errorHint = "请允许访问摄像头后重试";
-        }
+//        if (TextUtils.isEmpty(hint)) {
+//            hint = "将二维码/条形码置于框内即自动扫描";
+//        }
+//        if (TextUtils.isEmpty(errorHint)) {
+//            errorHint = "请允许访问摄像头后重试";
+//        }
         if (showPossiblePoint) {
             ANIMATION_DELAY = 100L;
         }
@@ -202,12 +202,12 @@ public final class ViewfinderView extends View {
             paint.setColor(hintColor);
             paint.setTextSize(28);
             String text = hint;
-            canvas.drawText(hint, frame.centerX() - text.length() * 28 / 2, frame.bottom + 35 + 20, paint);
+            canvas.drawText(hint, frame.centerX() - text.length() * 28 / 2, frame.top - 110, paint);
         } else {
             paint.setColor(errorHintColor);
             paint.setTextSize(28);
             String text = errorHint;
-            canvas.drawText(errorHint, frame.centerX() - text.length() * 28 / 2, frame.bottom + 35 + 20, paint);
+            canvas.drawText(errorHint, frame.centerX() - text.length() * 28 / 2, frame.top - 110, paint);
         }
     }
 
