@@ -7,8 +7,11 @@ import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.RadialGradient;
 import android.graphics.Rect;
+import android.graphics.Shader;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
@@ -42,6 +45,7 @@ public final class ViewfinderView extends View {
     private final int laserColor;
     private final int resultPointColor;
     private final int angleColor;
+    private final int lineColor;
     private String hint;
     private int hintColor;
     private String errorHint;
@@ -65,6 +69,7 @@ public final class ViewfinderView extends View {
         hintColor = typedArray.getColor(R.styleable.qr_ViewfinderView_qr_textHintColor, Color.GRAY);
         errorHint = typedArray.getString(R.styleable.qr_ViewfinderView_qr_errorHint);
         errorHintColor = typedArray.getColor(R.styleable.qr_ViewfinderView_qr_textErrorHintColor, Color.WHITE);
+        lineColor = typedArray.getColor(R.styleable.qr_ViewfinderView_qr_lineColor, Color.BLUE);
         showPossiblePoint = typedArray.getBoolean(R.styleable.qr_ViewfinderView_qr_showPossiblePoint, false);
 
         RECT_OFFSET_X = typedArray.getInt(R.styleable.qr_ViewfinderView_qr_offsetX, 0);
@@ -222,7 +227,8 @@ public final class ViewfinderView extends View {
             int middle = frame.height() / 2 + frame.top;
             canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
         } else {
-            paint.setColor(Color.BLUE);
+            paint.setColor(lineColor);
+
             scannerAlpha = (scannerAlpha + 1) % SCANNER_ALPHA.length;
             canvas.translate(0, translateY);
             canvas.drawRect(frame.left + 8, frame.top, frame.right - 8, frame.top + 2, paint);
