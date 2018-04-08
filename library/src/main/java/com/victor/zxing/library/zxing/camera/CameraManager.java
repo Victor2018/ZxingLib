@@ -121,6 +121,11 @@ public final class CameraManager {
             //FIXME
 
             FlashlightManager.enableFlashlight();
+
+            if(android.os.Build.MANUFACTURER.equals("LGE") &&
+                    android.os.Build.MODEL.equals("Nexus 5X")) {
+                camera.setDisplayOrientation(270);
+            }
         }
     }
 
