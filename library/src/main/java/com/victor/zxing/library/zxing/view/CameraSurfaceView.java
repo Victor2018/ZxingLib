@@ -3,6 +3,7 @@ package com.victor.zxing.library.zxing.view;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Point;
+import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -10,6 +11,7 @@ import android.view.SurfaceView;
 import com.google.zxing.Result;
 import com.victor.zxing.library.common.Scanner;
 import com.victor.zxing.library.common.ScannerOptions;
+import com.victor.zxing.library.module.MainHandler;
 import com.victor.zxing.library.zxing.ScannerViewHandler;
 import com.victor.zxing.library.zxing.camera.CameraManager;
 
@@ -25,7 +27,8 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
     private ScannerViewHandler mScannerViewHandler;
 
     private boolean lightMode = false;//闪光灯，默认关闭
-    private ScannerOptions mScannerOptions;
+    public ScannerOptions mScannerOptions;
+
 
     CameraSurfaceView(Context context, ScannerView scannerView) {
         super(context);
@@ -51,30 +54,36 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
         }
     }
 
-    private void initCamera(SurfaceHolder surfaceHolder) {
-        if (surfaceHolder == null) {
-            throw new IllegalStateException("No SurfaceHolder provided");
-        }
-        if (mCameraManager.isOpen()) {
-            Log.w(TAG, "initCamera() while already open -- late SurfaceView callback?");
-            return;
-        }
-        try {
-            mCameraManager.openDriver(surfaceHolder);
-            requestLayout();
-            mCameraManager.setTorch(lightMode);
-            // Creating the mScannerViewHandler starts the preview, which can also throw a
-            // RuntimeException.
-            if (mScannerViewHandler == null) {
-                mScannerViewHandler = new ScannerViewHandler(mScannerOptions, mCameraManager,this);
+    private void initCamera(final SurfaceHolder surfaceHolder) {
+        MainHandler.get().post(new Runnable() {
+            @Override
+            public void run() {
+                if (surfaceHolder == null) {
+                    throw new IllegalStateException("No SurfaceHolder provided");
+                }
+                if (mCameraManager.isOpen()) {
+                    Log.w(TAG, "initCamera() while already open -- late SurfaceView callback?");
+                    return;
+                }
+                try {
+                    mCameraManager.openDriver(surfaceHolder);
+                    requestLayout();
+                    mCameraManager.setTorch(lightMode);
+                    // Creating the mScannerViewHandler starts the preview, which can also throw a
+                    // RuntimeException.
+                    if (mScannerViewHandler == null) {
+                        mScannerViewHandler = new ScannerViewHandler(mScannerOptions, mCameraManager,CameraSurfaceView.this);
+                    }
+                } catch (IOException ioe) {
+                    Log.w(TAG, ioe);
+                } catch (RuntimeException e) {
+                    // Barcode Scanner has seen crashes in the wild of this variety:
+                    // java.?lang.?RuntimeException: Fail to connect to camera service
+                    Log.w(TAG, "Unexpected error initializing camera", e);
+                }
             }
-        } catch (IOException ioe) {
-            Log.w(TAG, ioe);
-        } catch (RuntimeException e) {
-            // Barcode Scanner has seen crashes in the wild of this variety:
-            // java.?lang.?RuntimeException: Fail to connect to camera service
-            Log.w(TAG, "Unexpected error initializing camera", e);
-        }
+        });
+
     }
 
     void onPause() {
@@ -96,15 +105,16 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder surfaceHolder) {
+    public void surfaceCreated(final SurfaceHolder surfaceHolder) {
 //        if (surfaceHolder == null) {
 //            Log.e(TAG, "*** WARNING *** surfaceCreated() gave us a null surface!");
 //        }
-        if (!hasSurface) {
-            hasSurface = true;
-            initCamera(surfaceHolder);
+            if (!hasSurface) {
+                hasSurface = true;
+                initCamera(surfaceHolder);
+            }
         }
-    }
+
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
