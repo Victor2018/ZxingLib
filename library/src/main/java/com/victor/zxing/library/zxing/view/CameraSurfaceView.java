@@ -55,7 +55,7 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
     }
 
     private void initCamera(final SurfaceHolder surfaceHolder) {
-        MainHandler.get().post(new Runnable() {
+        MainHandler.get().postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (surfaceHolder == null) {
@@ -82,7 +82,7 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
                     Log.w(TAG, "Unexpected error initializing camera", e);
                 }
             }
-        });
+        },500);
 
     }
 
