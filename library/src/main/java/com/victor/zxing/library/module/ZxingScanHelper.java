@@ -59,7 +59,7 @@ public class ZxingScanHelper implements OnScannerCompletionListener {
     private void init () {
         mScannerView.setOnScannerCompletionListener(this);
         mScannerView.setMediaResId(R.raw.beep);//设置扫描成功的声音
-        mScannerView.setDrawTextColor(Color.RED);
+//        mScannerView.setDrawTextColor(Color.RED);
 
         //显示扫描成功后的缩略图
         mScannerView.isShowResThumbnail(false);
@@ -77,13 +77,14 @@ public class ZxingScanHelper implements OnScannerCompletionListener {
 //        mScannerView.setLaserLineHeight(5);//设置扫描线高度
 //        mScannerView.setLaserFrameCornerWidth(5);
 
-        mScannerView.setLaserFrameBoundColor(mActivity.getResources().getColor(R.color.colorAccent));//扫描框四角颜色
-        mScannerView.setDrawTextColor(mActivity.getResources().getColor(R.color.colorAccent));//扫描框四角颜色
+//        mScannerView.setLaserFrameBoundColor(mActivity.getResources().getColor(R.color.colorAccent));//扫描框四角颜色
+//        mScannerView.setDrawTextColor(mActivity.getResources().getColor(R.color.colorAccent));//扫描框四角颜色
 
 //        mScannerView.setLaserLineResId(R.mipmap.wx_scan_line);//线图
 //
 //        mScannerView.setLaserGridLineResId(R.mipmap.zfb_grid_scan_line);//网格图
 //        mScannerView.setLaserFrameBoundColor(0xFF26CEFF);//支付宝颜色
+        setDrawText("");
 
         mScannerView.setLaserColor(mActivity.getResources().getColor(R.color.colorAccent));//设置扫描线颜色
     }

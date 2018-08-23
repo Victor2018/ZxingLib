@@ -98,10 +98,6 @@ public class CaptureActivity extends Activity implements View.OnClickListener,On
         mTvgallery.setOnClickListener(this);
     }
 
-    private void init () {
-
-    }
-
     /**
      * 切换散光灯状态
      */
@@ -111,12 +107,12 @@ public class CaptureActivity extends Activity implements View.OnClickListener,On
         } else {
             mScannerView.toggleLight(true);
         }
+        flashLightOpen = !flashLightOpen;
     }
 
     public void handleResult(String resultString) {
         if (resultString.equals("")) {
             Toast.makeText(getApplicationContext(), R.string.scan_failed, Toast.LENGTH_SHORT).show();
-            mZxingScanHelper.restartPreview();
         } else {
             Intent resultIntent = new Intent();
             Bundle bundle = new Bundle();
