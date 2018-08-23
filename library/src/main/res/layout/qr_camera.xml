@@ -6,25 +6,10 @@
     android:layout_height="fill_parent"
     tools:context=".CaptureActivity">
 
-    <SurfaceView
-        android:id="@+id/preview_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"/>
-
-    <com.victor.zxing.library.zxing.view.ViewfinderView
-        android:id="@+id/viewfinder_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        xdj:qr_angleColor="@color/colorAccent"
-        xdj:qr_errorHint="请允许访问摄像头后重试"
-        xdj:qr_hint="将二维码/条形码置于框内即自动扫描"
-        xdj:qr_textErrorHintColor="@android:color/white"
-        xdj:qr_textHintColor="@android:color/holo_blue_light"
-        xdj:qr_lineColor="#ffff00"
-        xdj:qr_showPossiblePoint="false"
-        xdj:qr_offsetX="0"
-        xdj:qr_offsetY="-120"/>
+    <com.victor.zxing.library.zxing.view.ScannerView
+        android:id="@+id/scanner_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <RelativeLayout
         android:layout_width="match_parent"

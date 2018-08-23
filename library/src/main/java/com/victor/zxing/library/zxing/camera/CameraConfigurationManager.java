@@ -3,136 +3,101 @@ package com.victor.zxing.library.zxing.camera;
 import android.content.Context;
 import android.graphics.Point;
 import android.hardware.Camera;
-import android.os.Build;
 import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
 import android.view.WindowManager;
 
-import java.util.List;
-import java.util.regex.Pattern;
+import com.victor.zxing.library.common.ScannerOptions;
+import com.victor.zxing.library.zxing.camera.open.CameraFacing;
+import com.victor.zxing.library.zxing.camera.open.OpenCamera;
 
+
+/**
+ * 相机辅助类，主要用于设置相机的各类参数 2017/02/21 4:35
+ * A class which deals with reading, parsing, and setting the camera parameters
+ * which are used to configure the camera hardware.
+ */
+@SuppressWarnings("deprecation")
 final class CameraConfigurationManager {
 
-    private static final String TAG = CameraConfigurationManager.class.getSimpleName();
-
-    private static final int TEN_DESIRED_ZOOM = 27;
-    private static final int DESIRED_SHARPNESS = 30;
-
-    private static final Pattern COMMA_PATTERN = Pattern.compile(",");
-
+    private static final String TAG = "CameraConfiguration";
+    private static final int FRONT_LIGHT_MODE_ON = 0;
+    private static final int FRONT_LIGHT_MODE_OFF = 1;
     private final Context context;
+    //    private int cwNeededRotation;
+    private int cwRotationFromDisplayToCamera;
+    // 屏幕分辨率
     private Point screenResolution;
+    // 相机分辨率
     private Point cameraResolution;
-    private int previewFormat;
-    private String previewFormatString;
+    private Point bestPreviewSize;
+    //    private Point previewSizeOnScreen;
+    private ScannerOptions scannerOptions;
 
-    CameraConfigurationManager(Context context) {
+    CameraConfigurationManager(Context context, ScannerOptions scannerOptions) {
         this.context = context;
-    }
-
-    private static Point getCameraResolution(Camera.Parameters parameters, Point screenResolution) {
-
-        String previewSizeValueString = parameters.get("preview-size-values");
-        // saw this on Xperia
-        if (previewSizeValueString == null) {
-            previewSizeValueString = parameters.get("preview-size-value");
-        }
-
-        Point cameraResolution = null;
-
-        if (previewSizeValueString != null) {
-            Log.d(TAG, "preview-size-values parameter: " + previewSizeValueString);
-            cameraResolution = findBestPreviewSizeValue(previewSizeValueString, screenResolution);
-        }
-
-        if (cameraResolution == null) {
-            // Ensure that the camera resolution is a multiple of 8, as the screen may not be.
-            cameraResolution = new Point(
-                    (screenResolution.x >> 3) << 3,
-                    (screenResolution.y >> 3) << 3);
-        }
-
-        return cameraResolution;
-    }
-
-    private static Point findBestPreviewSizeValue(CharSequence previewSizeValueString, Point screenResolution) {
-        int bestX = 0;
-        int bestY = 0;
-        int diff = Integer.MAX_VALUE;
-        for (String previewSize : COMMA_PATTERN.split(previewSizeValueString)) {
-
-            previewSize = previewSize.trim();
-            int dimPosition = previewSize.indexOf('x');
-            if (dimPosition < 0) {
-                Log.w(TAG, "Bad preview-size: " + previewSize);
-                continue;
-            }
-
-            int newX;
-            int newY;
-            try {
-                newX = Integer.parseInt(previewSize.substring(0, dimPosition));
-                newY = Integer.parseInt(previewSize.substring(dimPosition + 1));
-            } catch (NumberFormatException nfe) {
-                Log.w(TAG, "Bad preview-size: " + previewSize);
-                continue;
-            }
-
-//            int newDiff = Math.abs(newX - screenResolution.x) + Math.abs(newY - screenResolution.y);
-            int newDiff= Math.abs(newY - screenResolution.x) + Math.abs(newX - screenResolution.y);
-            if (newDiff == 0) {
-                bestX = newX;
-                bestY = newY;
-                break;
-            } else if (newDiff < diff) {
-                bestX = newX;
-                bestY = newY;
-                diff = newDiff;
-            }
-
-        }
-
-        if (bestX > 0 && bestY > 0) {
-            return new Point(bestX, bestY);
-        }
-        return null;
-    }
-
-    private static int findBestMotZoomValue(CharSequence stringValues, int tenDesiredZoom) {
-        int tenBestValue = 0;
-        for (String stringValue : COMMA_PATTERN.split(stringValues)) {
-            stringValue = stringValue.trim();
-            double value;
-            try {
-                value = Double.parseDouble(stringValue);
-            } catch (NumberFormatException nfe) {
-                return tenDesiredZoom;
-            }
-            int tenValue = (int) (10.0 * value);
-            if (Math.abs(tenDesiredZoom - value) < Math.abs(tenDesiredZoom - tenBestValue)) {
-                tenBestValue = tenValue;
-            }
-        }
-        return tenBestValue;
-    }
-
-    public static int getDesiredSharpness() {
-        return DESIRED_SHARPNESS;
+        this.scannerOptions = scannerOptions;
     }
 
     /**
+     * 计算了屏幕分辨率和当前最适合的相机像素
      * Reads, one time, values from the camera that are needed by the app.
      */
-    void initFromCameraParameters(Camera camera) {
-        Camera.Parameters parameters = camera.getParameters();
-        previewFormat = parameters.getPreviewFormat();
-        previewFormatString = parameters.get("preview-format");
-        Log.d(TAG, "Default preview format: " + previewFormat + '/' + previewFormatString);
+    void initFromCameraParameters(OpenCamera camera) {
+        Camera.Parameters parameters = camera.getCamera().getParameters();
         WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         Display display = manager.getDefaultDisplay();
-        screenResolution = new Point(display.getWidth(), display.getHeight());
-        Log.d(TAG, "Screen resolution: " + screenResolution);
+
+        int displayRotation = display.getRotation();
+        int cwRotationFromNaturalToDisplay;
+        switch (displayRotation) {
+            case Surface.ROTATION_0:
+                cwRotationFromNaturalToDisplay = 0;
+                break;
+            case Surface.ROTATION_90:
+                cwRotationFromNaturalToDisplay = 90;
+                break;
+            case Surface.ROTATION_180:
+                cwRotationFromNaturalToDisplay = 180;
+                break;
+            case Surface.ROTATION_270:
+                cwRotationFromNaturalToDisplay = 270;
+                break;
+            default:
+                // Have seen this return incorrect values like -90
+                if (displayRotation % 90 == 0) {
+                    cwRotationFromNaturalToDisplay = (360 + displayRotation) % 360;
+                } else {
+                    throw new IllegalArgumentException("Bad rotation: " + displayRotation);
+                }
+        }
+        Log.i(TAG, "Display at: " + cwRotationFromNaturalToDisplay);
+
+        int cwRotationFromNaturalToCamera = camera.getOrientation();
+        Log.i(TAG, "Camera at: " + cwRotationFromNaturalToCamera);
+
+        // Still not 100% sure about this. But acts like we need to flip this:
+        if (camera.getFacing() == CameraFacing.FRONT) {
+            cwRotationFromNaturalToCamera = (360 - cwRotationFromNaturalToCamera) % 360;
+            Log.i(TAG, "Front camera overriden to: " + cwRotationFromNaturalToCamera);
+        }
+
+        cwRotationFromDisplayToCamera =
+                (360 + cwRotationFromNaturalToCamera - cwRotationFromNaturalToDisplay) % 360;
+        Log.i(TAG, "Final display orientation: " + cwRotationFromDisplayToCamera);
+//        if (camera.getFacing() == CameraFacing.FRONT) {
+//            Log.i(TAG, "Compensating rotation for front camera");
+//            cwNeededRotation = (360 - cwRotationFromDisplayToCamera) % 360;
+//        } else {
+//            cwNeededRotation = cwRotationFromDisplayToCamera;
+//        }
+//        Log.i(TAG, "Clockwise rotation from display to camera: " + cwNeededRotation);
+
+        Point theScreenResolution = new Point();
+        display.getSize(theScreenResolution);
+        screenResolution = theScreenResolution;
+        Log.i(TAG, "Screen resolution in current orientation: " + screenResolution);
 
         Point screenResolutionForCamera = new Point();
         screenResolutionForCamera.x = screenResolution.x;
@@ -141,55 +106,96 @@ final class CameraConfigurationManager {
             screenResolutionForCamera.x = screenResolution.y;
             screenResolutionForCamera.y = screenResolution.x;
         }
-        // 下句第二参数要根据竖屏修改
-        cameraResolution = getCameraResolution(parameters, screenResolutionForCamera);
+        cameraResolution = CameraConfigurationUtils.findBestPreviewSizeValue(parameters, screenResolutionForCamera);
+        Log.i(TAG, "Camera resolution: " + cameraResolution);
+        bestPreviewSize = CameraConfigurationUtils.findBestPreviewSizeValue(parameters, screenResolutionForCamera);
+        Log.i(TAG, "Best available preview size: " + bestPreviewSize);
 
-
-        //cameraResolution = getCameraResolution(parameters, screenResolution);
-        Log.d(TAG, "Camera resolution: " + screenResolution);
-
+//        boolean isScreenPortrait = screenResolution.x < screenResolution.y;
+//        boolean isPreviewSizePortrait = bestPreviewSize.x < bestPreviewSize.y;
+//
+//        if (isScreenPortrait == isPreviewSizePortrait) {
+//            previewSizeOnScreen = bestPreviewSize;
+//        } else {
+//            previewSizeOnScreen = new Point(bestPreviewSize.y, bestPreviewSize.x);
+//        }
+//        Log.i(TAG, "Preview size on screen: " + previewSizeOnScreen);
     }
 
     /**
-     * Sets the camera up to take preview images which are used for both preview and decoding.
-     * We detect the preview format here so that buildLuminanceSource() can build an appropriate
-     * LuminanceSource subclass. In the future we may want to force YUV420SP as it's the smallest,
-     * and the planar Y can be used for barcode scanning without a copy in some cases.
+     * 读取配置设置相机的对焦模式、闪光灯模式等等
+     *
+     * @param camera
+     * @param safeMode
      */
-    void setDesiredCameraParameters(Camera camera) {
-     /*   Camera.Parameters parameters = camera.getParameters();
-        Log.d(TAG, "Setting preview size: " + cameraResolution);
-        parameters.setPreviewSize(cameraResolution.x, cameraResolution.y);
-        setFlash(parameters);
-        setZoom(parameters);
-        //setSharpness(parameters);
-        //modify here
-        camera.setDisplayOrientation(getDisplayOrientation());
-        camera.setParameters(parameters);*/
+    void setDesiredCameraParameters(OpenCamera camera, boolean safeMode, boolean invertScan) {
 
-        //////////////////////////////////////////////////
-        Camera.Parameters parameters = camera.getParameters();
-        List<Camera.Size> supportedPreviewSizes = parameters.getSupportedPreviewSizes();
-        int position =0;
-        if(supportedPreviewSizes.size()>2){
-            position=supportedPreviewSizes.size()/2+1;//supportedPreviewSizes.get();
-        }else {
-            position=supportedPreviewSizes.size()/2;
+        Camera theCamera = camera.getCamera();
+        Camera.Parameters parameters = theCamera.getParameters();
+
+        if (parameters == null) {
+            Log.w(TAG, "Device error: no camera parameters are available. Proceeding without " +
+                    "configuration.");
+            return;
         }
 
-        int width = supportedPreviewSizes.get(position).width;
-        int height = supportedPreviewSizes.get(position).height;
-        Log.d(TAG, "Setting preview size: " + cameraResolution);
-        camera.setDisplayOrientation(90);
-        cameraResolution.x=width;
-        cameraResolution.y=height;
-        parameters.setPreviewSize(width,height);
-        setFlash(parameters);
-        setZoom(parameters);
-        camera.setParameters(parameters);
+        if (safeMode) {
+            Log.w(TAG, "In camera config safe mode -- most settings will not be honored");
+        }
 
+        // 默认关闪光灯
+        initializeTorch(parameters, FRONT_LIGHT_MODE_OFF, safeMode);
+        // 自动对焦
+        boolean autoFocus = true;
+        // 持续对焦
+        boolean disableContinuousFocus = true;
+        CameraConfigurationUtils.setFocus(parameters, autoFocus, disableContinuousFocus, safeMode);
 
+        if (!safeMode) {
+            // 反色，扫描黑色背景上的白色条码。仅适用于部分设备。
+            if (invertScan) {
+                CameraConfigurationUtils.setInvertColor(parameters);
+            }
+            // 不进行条形码场景匹配
+            boolean barCodeSceneMode = true;
+            if (!barCodeSceneMode) {
+                CameraConfigurationUtils.setBarcodeSceneMode(parameters);
+            }
+
+            // 不使用距离测量
+            boolean disableMetering = true;
+            if (!disableMetering) {
+                CameraConfigurationUtils.setVideoStabilization(parameters);
+                CameraConfigurationUtils.setFocusArea(parameters);
+                CameraConfigurationUtils.setMetering(parameters);
+            }
+        }
+
+        parameters.setPreviewSize(bestPreviewSize.x, bestPreviewSize.y);
+
+        if (scannerOptions.getCameraZoomRatio() > 0) {
+            CameraConfigurationUtils.setZoom(parameters, scannerOptions.getCameraZoomRatio());
+        }
+
+        theCamera.setParameters(parameters);
+        theCamera.setDisplayOrientation(cwRotationFromDisplayToCamera);
+
+        Camera.Parameters afterParameters = theCamera.getParameters();
+        Camera.Size afterSize = afterParameters.getPreviewSize();
+        if (afterSize != null
+                && (bestPreviewSize.x != afterSize.width || bestPreviewSize.y != afterSize.height)) {
+            bestPreviewSize.x = afterSize.width;
+            bestPreviewSize.y = afterSize.height;
+        }
     }
+
+//    Point getBestPreviewSize() {
+//        return bestPreviewSize;
+//    }
+
+//    Point getPreviewSizeOnScreen() {
+//        return previewSizeOnScreen;
+//    }
 
     Point getCameraResolution() {
         return cameraResolution;
@@ -199,123 +205,44 @@ final class CameraConfigurationManager {
         return screenResolution;
     }
 
-    int getPreviewFormat() {
-        return previewFormat;
-    }
+//    int getCWNeededRotation() {
+//        return cwNeededRotation;
+//    }
 
-    String getPreviewFormatString() {
-        return previewFormatString;
-    }
-
-    private void setFlash(Camera.Parameters parameters) {
-        // FIXME: This is a hack to turn the flash off on the Samsung Galaxy.
-        // And this is a hack-hack to work around a different value on the Behold II
-        // Restrict Behold II check to Cupcake, per Samsung's advice
-        //if (Build.MODEL.contains("Behold II") &&
-        //    CameraManager.SDK_INT == Build.VERSION_CODES.CUPCAKE) {
-        if (Build.MODEL.contains("Behold II") && CameraManager.SDK_INT == 3) { // 3 = Cupcake
-            parameters.set("flash-value", 1);
-        } else {
-            parameters.set("flash-value", 2);
-        }
-        // This is the standard setting to turn the flash off that all devices should honor.
-        parameters.set("flash-mode", "off");
-    }
-
-    private void setZoom(Camera.Parameters parameters) {
-
-        String zoomSupportedString = parameters.get("zoom-supported");
-        if (zoomSupportedString != null && !Boolean.parseBoolean(zoomSupportedString)) {
-            return;
-        }
-
-        int tenDesiredZoom = TEN_DESIRED_ZOOM;
-
-        String maxZoomString = parameters.get("max-zoom");
-        if (maxZoomString != null) {
-            try {
-                int tenMaxZoom = (int) (10.0 * Double.parseDouble(maxZoomString));
-                if (tenDesiredZoom > tenMaxZoom) {
-                    tenDesiredZoom = tenMaxZoom;
-                }
-            } catch (NumberFormatException nfe) {
-                Log.w(TAG, "Bad max-zoom: " + maxZoomString);
+    boolean getTorchState(Camera camera) {
+        if (camera != null) {
+            Camera.Parameters parameters = camera.getParameters();
+            if (parameters != null) {
+                String flashMode = camera.getParameters().getFlashMode();
+                return flashMode != null
+                        && (Camera.Parameters.FLASH_MODE_ON.equals(flashMode)
+                        || Camera.Parameters.FLASH_MODE_TORCH
+                        .equals(flashMode));
             }
         }
+        return false;
+    }
 
-        String takingPictureZoomMaxString = parameters.get("taking-picture-zoom-max");
-        if (takingPictureZoomMaxString != null) {
-            try {
-                int tenMaxZoom = Integer.parseInt(takingPictureZoomMaxString);
-                if (tenDesiredZoom > tenMaxZoom) {
-                    tenDesiredZoom = tenMaxZoom;
-                }
-            } catch (NumberFormatException nfe) {
-                Log.w(TAG, "Bad taking-picture-zoom-max: " + takingPictureZoomMaxString);
-            }
-        }
+    void setTorch(Camera camera, boolean newSetting) {
+        Camera.Parameters parameters = camera.getParameters();
+        doSetTorch(parameters, newSetting, false);
+        camera.setParameters(parameters);
+    }
 
-        String motZoomValuesString = parameters.get("mot-zoom-values");
-        if (motZoomValuesString != null) {
-            tenDesiredZoom = findBestMotZoomValue(motZoomValuesString, tenDesiredZoom);
-        }
+    private void initializeTorch(Camera.Parameters parameters,
+                                 int frontLightMode, boolean safeMode) {
+        boolean currentSetting = frontLightMode == FRONT_LIGHT_MODE_ON;
+        doSetTorch(parameters, currentSetting, safeMode);
+    }
 
-        String motZoomStepString = parameters.get("mot-zoom-step");
-        if (motZoomStepString != null) {
-            try {
-                double motZoomStep = Double.parseDouble(motZoomStepString.trim());
-                int tenZoomStep = (int) (10.0 * motZoomStep);
-                if (tenZoomStep > 1) {
-                    tenDesiredZoom -= tenDesiredZoom % tenZoomStep;
-                }
-            } catch (NumberFormatException nfe) {
-                // continue
-            }
-        }
-
-        // Set zoom. This helps encourage the user to pull ic_back.
-        // Some devices like the Behold have a zoom parameter
-        if (maxZoomString != null || motZoomValuesString != null) {
-            parameters.set("zoom", String.valueOf(tenDesiredZoom / 10.0));
-        }
-
-        // Most devices, like the Hero, appear to expose this zoom parameter.
-        // It takes on values like "27" which appears to mean 2.7x zoom
-        if (takingPictureZoomMaxString != null) {
-            parameters.set("taking-picture-zoom", tenDesiredZoom);
+    private void doSetTorch(Camera.Parameters parameters, boolean newSetting,
+                            boolean safeMode) {
+        CameraConfigurationUtils.setTorch(parameters, newSetting);
+        // 不曝光
+        boolean disableExposure = true;
+        if (!safeMode && !disableExposure) {
+            CameraConfigurationUtils.setBestExposure(parameters, newSetting);
         }
     }
 
-    private int getDisplayOrientation() {
-        Camera.CameraInfo info = new Camera.CameraInfo();
-        Camera.getCameraInfo(Camera.CameraInfo.CAMERA_FACING_BACK, info);
-        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        Display display = wm.getDefaultDisplay();
-
-        int rotation = display.getRotation();
-        int degrees = 0;
-        switch (rotation) {
-            case Surface.ROTATION_0:
-                degrees = 0;
-                break;
-            case Surface.ROTATION_90:
-                degrees = 90;
-                break;
-            case Surface.ROTATION_180:
-                degrees = 180;
-                break;
-            case Surface.ROTATION_270:
-                degrees = 270;
-                break;
-        }
-
-        int result;
-        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-            result = (info.orientation + degrees) % 360;
-            result = (360 - result) % 360;
-        } else {
-            result = (info.orientation - degrees + 360) % 360;
-        }
-        return result;
-    }
 }

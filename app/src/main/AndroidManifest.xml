@@ -25,6 +25,10 @@
             </intent-filter>
         </activity>
         <activity android:name=".library.CaptureActivity">
+            <intent-filter>
+                <action android:name="com.mylhyl.zxing.scanner.client.android.SCAN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
     </application>
 

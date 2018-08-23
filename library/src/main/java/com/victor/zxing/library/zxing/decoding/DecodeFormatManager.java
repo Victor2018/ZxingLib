@@ -1,90 +1,73 @@
 package com.victor.zxing.library.zxing.decoding;
 
-import android.content.Intent;
-import android.net.Uri;
+import android.text.TextUtils;
 
 import com.google.zxing.BarcodeFormat;
+import com.victor.zxing.library.common.Scanner;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Vector;
-import java.util.regex.Pattern;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
-final class DecodeFormatManager {
+public final class DecodeFormatManager {
 
-    static final Vector<BarcodeFormat> PRODUCT_FORMATS;
-    static final Vector<BarcodeFormat> ONE_D_FORMATS;
-    static final Vector<BarcodeFormat> QR_CODE_FORMATS;
-    static final Vector<BarcodeFormat> DATA_MATRIX_FORMATS;
-    private static final Pattern COMMA_PATTERN = Pattern.compile(",");
+    static final Set<BarcodeFormat> PRODUCT_FORMATS;
+    static final Set<BarcodeFormat> INDUSTRIAL_FORMATS;
+    private static final Set<BarcodeFormat> ONE_D_FORMATS;
+    static final Set<BarcodeFormat> QR_CODE_FORMATS = EnumSet.of(BarcodeFormat.QR_CODE);
+    static final Set<BarcodeFormat> DATA_MATRIX_FORMATS = EnumSet.of(BarcodeFormat.DATA_MATRIX);
 
     static {
-        PRODUCT_FORMATS = new Vector<BarcodeFormat>(5);
-        PRODUCT_FORMATS.add(BarcodeFormat.UPC_A);
-        PRODUCT_FORMATS.add(BarcodeFormat.UPC_E);
-        PRODUCT_FORMATS.add(BarcodeFormat.EAN_13);
-        PRODUCT_FORMATS.add(BarcodeFormat.EAN_8);
-        PRODUCT_FORMATS.add(BarcodeFormat.RSS_14);
-        ONE_D_FORMATS = new Vector<BarcodeFormat>(PRODUCT_FORMATS.size() + 4);
-        ONE_D_FORMATS.addAll(PRODUCT_FORMATS);
-        ONE_D_FORMATS.add(BarcodeFormat.CODE_39);
-        ONE_D_FORMATS.add(BarcodeFormat.CODE_93);
-        ONE_D_FORMATS.add(BarcodeFormat.CODE_128);
-        ONE_D_FORMATS.add(BarcodeFormat.ITF);
-        QR_CODE_FORMATS = new Vector<BarcodeFormat>(1);
-        QR_CODE_FORMATS.add(BarcodeFormat.QR_CODE);
-        DATA_MATRIX_FORMATS = new Vector<BarcodeFormat>(1);
-        DATA_MATRIX_FORMATS.add(BarcodeFormat.DATA_MATRIX);
+        PRODUCT_FORMATS = EnumSet.of(
+                BarcodeFormat.UPC_A,
+                BarcodeFormat.UPC_E,
+                BarcodeFormat.EAN_13,
+                BarcodeFormat.EAN_8,
+                BarcodeFormat.RSS_14,
+                BarcodeFormat.RSS_EXPANDED);
+        INDUSTRIAL_FORMATS = EnumSet.of(
+                BarcodeFormat.CODE_39,
+                BarcodeFormat.CODE_93,
+                BarcodeFormat.CODE_128,
+                BarcodeFormat.ITF,
+                BarcodeFormat.CODABAR);
+        ONE_D_FORMATS = EnumSet.copyOf(PRODUCT_FORMATS);
+        ONE_D_FORMATS.addAll(INDUSTRIAL_FORMATS);
+    }
+
+    private static final Map<String, Set<BarcodeFormat>> FORMATS_FOR_MODE;
+
+    static {
+        FORMATS_FOR_MODE = new HashMap<>();
+        FORMATS_FOR_MODE.put(Scanner.ScanMode.ONE_D_MODE, ONE_D_FORMATS);
+        FORMATS_FOR_MODE.put(Scanner.ScanMode.PRODUCT_MODE, PRODUCT_FORMATS);
+        FORMATS_FOR_MODE.put(Scanner.ScanMode.QR_CODE_MODE, QR_CODE_FORMATS);
+        FORMATS_FOR_MODE.put(Scanner.ScanMode.DATA_MATRIX_MODE, DATA_MATRIX_FORMATS);
     }
 
     private DecodeFormatManager() {
     }
 
-    static Vector<BarcodeFormat> parseDecodeFormats(Intent intent) {
-        List<String> scanFormats = null;
-        String scanFormatsString = intent.getStringExtra(Intents.Scan.SCAN_FORMATS);
-        if (scanFormatsString != null) {
-            scanFormats = Arrays.asList(COMMA_PATTERN.split(scanFormatsString));
-        }
-        return parseDecodeFormats(scanFormats, intent.getStringExtra(Intents.Scan.MODE));
-    }
-
-    static Vector<BarcodeFormat> parseDecodeFormats(Uri inputUri) {
-        List<String> formats = inputUri.getQueryParameters(Intents.Scan.SCAN_FORMATS);
-        if (formats != null && formats.size() == 1 && formats.get(0) != null) {
-            formats = Arrays.asList(COMMA_PATTERN.split(formats.get(0)));
-        }
-        return parseDecodeFormats(formats, inputUri.getQueryParameter(Intents.Scan.MODE));
-    }
-
-    private static Vector<BarcodeFormat> parseDecodeFormats(Iterable<String> scanFormats,
-                                                            String decodeMode) {
+    public static Set<BarcodeFormat> parseDecodeFormats(BarcodeFormat... scanFormats) {
         if (scanFormats != null) {
-            Vector<BarcodeFormat> formats = new Vector<BarcodeFormat>();
+            Set<BarcodeFormat> formats = EnumSet.noneOf(BarcodeFormat.class);
             try {
-                for (String format : scanFormats) {
-                    formats.add(BarcodeFormat.valueOf(format));
+                for (BarcodeFormat format : scanFormats) {
+                    formats.add(format);
                 }
                 return formats;
             } catch (IllegalArgumentException iae) {
                 // ignore it then
             }
         }
-        if (decodeMode != null) {
-            if (Intents.Scan.PRODUCT_MODE.equals(decodeMode)) {
-                return PRODUCT_FORMATS;
-            }
-            if (Intents.Scan.QR_CODE_MODE.equals(decodeMode)) {
-                return QR_CODE_FORMATS;
-            }
-            if (Intents.Scan.DATA_MATRIX_MODE.equals(decodeMode)) {
-                return DATA_MATRIX_FORMATS;
-            }
-            if (Intents.Scan.ONE_D_MODE.equals(decodeMode)) {
-                return ONE_D_FORMATS;
-            }
-        }
         return null;
     }
 
+    public static Set<BarcodeFormat> parseDecodeFormats(String decodeMode) {
+        if (!TextUtils.isEmpty(decodeMode)) {
+            return FORMATS_FOR_MODE.get(decodeMode);
+        }
+        return null;
+    }
 }

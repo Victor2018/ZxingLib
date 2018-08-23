@@ -5,9 +5,17 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.provider.MediaStore;
-
+/*
+ * -----------------------------------------------------------------
+ * Copyright (C) 2018-2028, by longtv, All rights reserved.
+ * -----------------------------------------------------------------
+ * File: ActionUtils.java
+ * Author: Victor
+ * Date: 2018/8/23 14:52
+ * Description:
+ * -----------------------------------------------------------------
+ */
 public class ActionUtils {
-
     private static final String TAG = ActionUtils.class.getSimpleName();
 
     public static final int PHOTO_REQUEST_GALLERY = 1000;

@@ -6,10 +6,10 @@ import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.Vibrator;
@@ -23,15 +23,14 @@ import android.widget.Toast;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
+import com.google.zxing.client.result.ParsedResult;
 import com.victor.zxing.library.BuildConfig;
 import com.victor.zxing.library.R;
 import com.victor.zxing.library.common.ActionUtils;
-import com.victor.zxing.library.common.QrUtils;
 import com.victor.zxing.library.interfaces.OnQrScanListener;
-import com.victor.zxing.library.zxing.camera.CameraManager;
-import com.victor.zxing.library.zxing.decoding.CaptureActivityHandler;
-import com.victor.zxing.library.zxing.decoding.InactivityTimer;
-import com.victor.zxing.library.zxing.view.ViewfinderView;
+import com.victor.zxing.library.interfaces.OnScannerCompletionListener;
+import com.victor.zxing.library.zxing.decoding.QRDecode;
+import com.victor.zxing.library.zxing.view.ScannerView;
 
 import java.io.IOException;
 import java.util.Vector;
@@ -40,127 +39,73 @@ import java.util.Vector;
  * Created by victor on 2017/11/20.
  */
 
-public class ZxingScanHelper implements SurfaceHolder.Callback{
+public class ZxingScanHelper implements OnScannerCompletionListener {
     private String TAG = "ZxingScanHelper";
     private static final int REQUEST_PERMISSION_CAMERA = 1000;
     private static final int REQUEST_PERMISSION_PHOTO = 1001;
     private static final long VIBRATE_DURATION = 200L;
 
     public Activity mActivity;
-    private CaptureActivityHandler handler;
-    private ViewfinderView mViewfinderView;
-    private boolean hasSurface;
-    private Vector<BarcodeFormat> decodeFormats;
-    private String characterSet;
-    private InactivityTimer inactivityTimer;
-    private MediaPlayer mediaPlayer;
-    private boolean playBeep;
-    private static final float BEEP_VOLUME = 0.10f;
-    private boolean vibrate;
+    private ScannerView mScannerView;
     private OnQrScanListener mOnQrScanListener;
 
-    public ZxingScanHelper (Activity activity,ViewfinderView viewfinderView,OnQrScanListener listener) {
+    public ZxingScanHelper (Activity activity,ScannerView scannerView,OnQrScanListener listener) {
         mActivity = activity;
-        mViewfinderView = viewfinderView;
+        mScannerView = scannerView;
         mOnQrScanListener = listener;
         init();
     }
 
     private void init () {
-        hasSurface = false;
-        inactivityTimer = new InactivityTimer(mActivity);
-        CameraManager.init(mActivity);
-    }
+        mScannerView.setOnScannerCompletionListener(this);
+        mScannerView.setMediaResId(R.raw.beep);//设置扫描成功的声音
+        mScannerView.setDrawTextColor(Color.RED);
 
-    private void initCamera(SurfaceHolder surfaceHolder) {
-        try {
-            CameraManager.get().openDriver(surfaceHolder);
-        } catch (IOException ioe) {
-            return;
-        } catch (RuntimeException e) {
-            return;
-        }
-        if (handler == null) {
-            handler = new CaptureActivityHandler(this, decodeFormats,
-                    characterSet);
-        }
-    }
+        //显示扫描成功后的缩略图
+        mScannerView.isShowResThumbnail(false);
+        //全屏识别
+        mScannerView.isScanFullScreen(false);
+        //隐藏扫描框
+        mScannerView.isHideLaserFrame(false);
+//        mScannerView.isScanInvert(true);//扫描反色二维码
+//        mScannerView.setCameraFacing(CameraFacing.FRONT);
+//        mScannerView.setLaserMoveSpeed(1);//速度
 
-    private void initBeepSound() {
-        if (playBeep && mediaPlayer == null) {
-            // The volume on STREAM_SYSTEM is not adjustable, and users found it
-            // too loud,
-            // so we now play on the music stream.
-            mActivity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
-            mediaPlayer = new MediaPlayer();
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            mediaPlayer.setOnCompletionListener(beepListener);
+//        mScannerView.setLaserFrameTopMargin(100);//扫描框与屏幕上方距离
+//        mScannerView.setLaserFrameSize(400, 400);//扫描框大小
+//        mScannerView.setLaserFrameCornerLength(25);//设置4角长度
+//        mScannerView.setLaserLineHeight(5);//设置扫描线高度
+//        mScannerView.setLaserFrameCornerWidth(5);
 
-            AssetFileDescriptor file = mActivity.getResources().openRawResourceFd(
-                    R.raw.beep);
-            try {
-                mediaPlayer.setDataSource(file.getFileDescriptor(),
-                        file.getStartOffset(), file.getLength());
-                file.close();
-                mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);
-                mediaPlayer.prepare();
-            } catch (IOException e) {
-                mediaPlayer = null;
-            }
-        }
+        mScannerView.setLaserFrameBoundColor(mActivity.getResources().getColor(R.color.colorAccent));//扫描框四角颜色
+        mScannerView.setDrawTextColor(mActivity.getResources().getColor(R.color.colorAccent));//扫描框四角颜色
+
+//        mScannerView.setLaserLineResId(R.mipmap.wx_scan_line);//线图
+//
+//        mScannerView.setLaserGridLineResId(R.mipmap.zfb_grid_scan_line);//网格图
+//        mScannerView.setLaserFrameBoundColor(0xFF26CEFF);//支付宝颜色
+
+        mScannerView.setLaserColor(mActivity.getResources().getColor(R.color.colorAccent));//设置扫描线颜色
     }
 
     public void onResume() {
-        Log.d(TAG, "xxxxxxxxxxxxxxxxxxxonResume");
-        SurfaceView surfaceView = (SurfaceView) mActivity.findViewById(R.id.preview_view);
-        SurfaceHolder surfaceHolder = surfaceView.getHolder();
-        if (hasSurface) {
-            initCamera(surfaceHolder);
-        } else {
-            surfaceHolder.addCallback(this);
-            surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        }
-        decodeFormats = null;
-        characterSet = null;
-
-        playBeep = true;
-        final AudioManager audioService = (AudioManager) mActivity.getSystemService(mActivity.AUDIO_SERVICE);
-        if (audioService.getRingerMode() != AudioManager.RINGER_MODE_NORMAL) {
-            playBeep = false;
-        }
-        initBeepSound();
-        vibrate = true;
+        mScannerView.onResume();
     }
 
     public void onPause () {
-        Log.d(TAG, "xxxxxxxxxxxxxxxxxxxonPause");
-        if (handler != null) {
-            handler.quitSynchronously();
-            handler = null;
-        }
-        CameraManager.get().closeDriver();
+        mScannerView.onPause();
     }
 
     public void onDestroy () {
-        inactivityTimer.shutdown();
+
     }
 
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        if (!hasSurface) {
-            hasSurface = true;
-            initCamera(holder);
+    public void setDrawText (String text) {
+        if (mScannerView != null) {
+            mScannerView.setDrawText(text, true);
         }
     }
 
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-    }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        hasSurface = false;
-    }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == mActivity.RESULT_OK
@@ -180,20 +125,9 @@ public class ZxingScanHelper implements SurfaceHolder.Callback{
                 }
             }
             if (!TextUtils.isEmpty(path)) {
-                Result result = QrUtils.decodeImage(path);
-                if (result != null) {
-                    if (BuildConfig.DEBUG) Log.d(TAG, result.getText());
-                    handleDecode(result, null);
-                } else {
-                    new AlertDialog.Builder(mActivity)
-                            .setTitle("提示")
-                            .setMessage("此图片无法识别")
-                            .setPositiveButton("确定", null)
-                            .show();
-                }
+                QRDecode.decodeQR(path, this);
             } else {
-                if (BuildConfig.DEBUG) Log.e(TAG, "image path not found");
-                Toast.makeText(mActivity, "图片路径未找到", Toast.LENGTH_SHORT).show();
+                Toast.makeText(mActivity, "mage path not found", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -205,12 +139,14 @@ public class ZxingScanHelper implements SurfaceHolder.Callback{
      * @param barcode
      */
     public void handleDecode(Result result, Bitmap barcode) {
-        inactivityTimer.onActivity();
-        playBeepSoundAndVibrate();
         String resultString = result.getText();
         if (mOnQrScanListener != null) {
             mOnQrScanListener.OnQrScan(resultString);
         }
+    }
+
+    public void restartPreviewAfterDelay(long delayMS) {
+        mScannerView.restartPreviewAfterDelay(delayMS);
     }
 
 
@@ -222,44 +158,14 @@ public class ZxingScanHelper implements SurfaceHolder.Callback{
         ActionUtils.startActivityForGallery(mActivity, ActionUtils.PHOTO_REQUEST_GALLERY);
     }
 
-    public void drawViewfinder() {
-        mViewfinderView.drawViewfinder();
-    }
-
-    private void playBeepSoundAndVibrate() {
-        if (playBeep && mediaPlayer != null) {
-            mediaPlayer.start();
-        }
-        if (vibrate) {
-            Vibrator vibrator = (Vibrator) mActivity.getSystemService(mActivity.VIBRATOR_SERVICE);
-            vibrator.vibrate(VIBRATE_DURATION);
-        }
-    }
 
     public void restartPreview() {
-        // 当界面跳转时 handler 可能为null
-        if (handler != null) {
-            Message restartMessage = Message.obtain();
-            restartMessage.what = R.id.restart_preview;
-            handler.handleMessage(restartMessage);
-        }
     }
 
-    /**
-     * When the beep has finished playing, rewind to queue up another one.
-     */
-    private final MediaPlayer.OnCompletionListener beepListener = new MediaPlayer.OnCompletionListener() {
-        public void onCompletion(MediaPlayer mediaPlayer) {
-            mediaPlayer.seekTo(0);
-        }
-    };
 
-    public ViewfinderView getViewfinderView() {
-        return mViewfinderView;
+    @Override
+    public void onScannerCompletion(Result rawResult, ParsedResult parsedResult, Bitmap barcode) {
+        handleDecode(rawResult,barcode);
+        restartPreviewAfterDelay(2000);
     }
-
-    public Handler getHandler() {
-        return handler;
-    }
-
 }
