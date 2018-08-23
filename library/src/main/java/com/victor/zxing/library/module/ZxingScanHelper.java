@@ -86,7 +86,7 @@ public class ZxingScanHelper implements OnScannerCompletionListener {
 //        mScannerView.setLaserFrameBoundColor(0xFF26CEFF);//支付宝颜色
         setDrawText("");
 
-        mScannerView.setLaserColor(mActivity.getResources().getColor(R.color.colorAccent));//设置扫描线颜色
+//        mScannerView.setLaserColor(mActivity.getResources().getColor(R.color.colorAccent));//设置扫描线颜色
     }
 
     public void onResume() {
